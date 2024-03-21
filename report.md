@@ -432,6 +432,7 @@ rules:
 ### Description
 
 Generativity is mishandled, leading to an out-of-bounds write or read.
+Tricky lifetime issues.
 **Rejected by rustc after fixing the issue.**
 
 ### Code Snippet
@@ -449,3 +450,26 @@ fn main() {
 // [dependencies]
 // compact_arena = { git = "https://github.com/llogiq/compact_arena/", rev = "eb413b3d47baea8e8a0b9ce2ccd8299b354d3b74" }
 ```
+
+## CVE-2020-13759
+
+### Information
+
+- MITRE: [CVE-2020-13759](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-13759).
+- NVD: [CVE-2020-13759](https://nvd.nist.gov/vuln/detail/CVE-2020-13759).
+- Repository: [vm-memory](https://github.com/rust-vmm/vm-memory).
+- Issue: [DoS issue when using virtio with rust-vmm/vm-memory](https://github.com/rust-vmm/vm-memory/issues/93).
+- Pull request: [DoS issue when using virtio with rust-vmm/vm-memory](https://github.com/rust-vmm/vm-memory/pull/98).
+- Commit SHA: [0934351](https://github.com/rust-vmm/vm-memory/tree/0934351) (before) -> [cbac816](https://github.com/rust-vmm/vm-memory/tree/cbac816) (after).
+- Advisory: [Assigned RUSTSEC-2020-0157 to vm-memory, RUSTSEC-2021-0107 to ckb](https://github.com/rustsec/advisory-db/pull/1033).
+
+
+### Description
+
+rust-vmm vm-memory before 0.1.1 and 0.2.x before 0.2.1 allows attackers to cause a denial of service (loss of IP networking) because read_obj and write_obj do not properly access memory. This affects aarch64 (with musl or glibc) and x86_64 (with musl).
+
+### Memory Safety Related
+
+I don't know think this is a memory safety issue.
+
+The functions read_obj and write_obj are not doing **atomic accesses** for all combinations of platform and libc implementations. These reads and writes translate to memcpy, which may be performing byte-by-byte copies, resulting in DoS.
