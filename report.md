@@ -374,3 +374,35 @@ rules:
       Mark the function as `unsafe` to prevent potential memory safety issues.
     severity: ERROR
 ```
+
+## CVE-2019-16138
+
+### Information
+
+- MITRE: [CVE-2019-16138](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-16138).
+- NVD: [CVE-2019-16138](https://nvd.nist.gov/vuln/detail/CVE-2019-16138).
+- Repository: [image](https://github.com/image-rs/image).
+- Issue: [Unnecessary unsafety in HDR decoder](https://github.com/image-rs/image/issues/980).
+- Commit SHA: [984e092](https://github.com/image-rs/image/tree/984e092).
+
+### Description
+
+Vec::set_len is called on an uninitialized vector, leading to a use-after-free and arbitrary code execution.
+
+### Code Snippet
+
+before:
+
+```rust
+let mut ret = Vec::with_capacity(pixel_count);
+unsafe {
+    // RGBE8Pixel doesn't implement Drop, so it's Ok to drop half-initialized ret
+    ret.set_len(pixel_count);
+} // ret contains uninitialized data, so now it's my responsibility to return fully initialized ret
+```
+
+### Pattern
+
+```yaml
+
+```
