@@ -177,3 +177,31 @@ https://docs.rs/crossbeam/0.4.0/src/crossbeam/seg_queue.rs.html#24
 
 > Multiple threads, complex mechanism, can't understand.
 
+## CVE-2018-21000
+
+### Information
+
+- MITRE: [CVE-2018-21000](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-21000).
+- NVD: [CVE-2018-21000](https://nvd.nist.gov/vuln/detail/CVE-2018-21000).
+- Repository: [safe-transmute-rs](https://github.com/nabijaczleweli/safe-transmute-rs).
+- Pull request: [Fix vec-to-vec conversion primitives](https://github.com/nabijaczleweli/safe-transmute-rs/pull/36).
+- Commit SHA: [c79ebfd](https://github.com/nabijaczleweli/safe-transmute-rs/tree/c79ebfd) (before) -> [a134e06](https://github.com/nabijaczleweli/safe-transmute-rs/tree/a134e06) (after).
+- Advisory: [safe-transmute's vec-to-vec transmutations could lead to heap overflow/corruption](https://github.com/rustsec/advisory-db/pull/89).
+
+### Description
+
+When calling `Vec::from_raw_parts`, the positions of `len` and `capaciity` are reversed.
+
+### Code Snippet
+
+before:
+
+```rust
+Vec::from_raw_parts(ptr as *mut T, capacity, len)
+```
+
+after:
+
+```rust
+Vec::from_raw_parts(ptr as *mut T, len, capacity)
+```
