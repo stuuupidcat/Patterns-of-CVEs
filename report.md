@@ -258,3 +258,103 @@ after:
 ```rust
 Vec::from_raw_parts(ptr as *mut T, len, capacity)
 ```
+
+## CVE-2019-15548
+
+### Information
+
+- MITRE: [CVE-2019-15548](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-15548).
+- NVD: [CVE-2019-15548](https://nvd.nist.gov/vuln/detail/CVE-2019-15548).
+- Repository: [ncurses-rs](https://github.com/jeaye/ncurses-rs).
+- Issue: [instr and mvwinstr are never safe to use](https://github.com/jeaye/ncurses-rs/issues/186).
+- Commit SHA: [55be2ec](https://github.com/jeaye/ncurses-rs/tree/55be2ec) (before) -> [7fcee59](https://github.com/jeaye/ncurses-rs/tree/7fcee59) (after).
+
+### Description
+
+The `instr` and `mvwinstr` functions are never safe to use.
+
+### Code Snippet
+
+before:
+
+```rust
+pub fn instr(s: &mut String) -> i32
+{
+  /* XXX: This is probably broken. */
+  unsafe
+  {
+    let buf = s.as_bytes().as_ptr();
+    let ret = ll::instr(mem::transmute(buf));
+
+    let capacity = s.capacity();
+    match s.find('\0')
+    {
+      Some(index) => s.as_mut_vec().set_len(index as usize),
+      None => s.as_mut_vec().set_len(capacity),
+    }
+
+    ret
+  }
+}
+
+pub fn mvwinstr(w: WINDOW, y: i32, x: i32, s: &mut String) -> i32
+{
+  /* XXX: This is probably broken. */
+  unsafe
+  {
+    let buf = s.as_bytes().as_ptr();
+    let ret = ll::mvwinstr(w, y, x, mem::transmute(buf));
+
+    let capacity = s.capacity();
+    match s.find('\0')
+    {
+      Some(index) => s.as_mut_vec().set_len(index as usize),
+      None => s.as_mut_vec().set_len(capacity),
+    }
+
+    ret
+  }
+}
+```
+
+### Pattern
+
+```yaml
+rules:
+  - id: CVE-2019-15548_1
+    languages: [rust]
+    patterns:
+      - pattern-either:
+          - pattern: $MOD::instr(...)
+          - pattern: instr(...)
+      - pattern-inside: |
+          pub fn $FUNC(...) {
+            ...
+          }
+      - pattern-not-inside: |
+          pub unsafe fn $FUNC(...) {
+            ...
+          }
+    message: |
+      Check the function `$FUNC` which calls the `instr` method and is marked as `safe`. 
+      Mark the function as `unsafe` to prevent potential memory safety issues.
+    severity: ERROR
+  - id: CVE-2019-15548_2
+    languages: [rust]
+    patterns:
+      - pattern-either:
+          - pattern: $MOD::mvwinstr(...)
+          - pattern: mvwinstr(...)
+      - pattern-inside: |
+          pub fn $FUNC(...) {
+            ...
+          }
+      - pattern-not-inside: |
+          pub unsafe fn $FUNC(...) {
+            ...
+          }
+    message: |
+      Check the function `$FUNC` which calls the `mvwinstr` method and is marked as `safe`. 
+      Mark the function as `unsafe` to prevent potential memory safety issues.
+    severity: ERROR
+```
