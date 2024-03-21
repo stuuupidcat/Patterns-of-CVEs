@@ -101,3 +101,57 @@ rules:
       specific capacity. Check the `$LEN` to ensure it is not overflown.
     severity: WARNING
 ```
+
+## CVE-2018-20992
+
+### Information
+
+- MITRE: [CVE-2018-20992](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20992).
+- NVD: [CVE-2018-20992](https://nvd.nist.gov/vuln/detail/CVE-2018-20992).
+- Repository: [claxon](https://github.com/ruuda/claxon).
+- Issue: [Contents of uninitialized memory are leaked into the output on malformed inputs](https://github.com/ruuda/claxon/issues/10).
+- Commit SHA: [cd82be3](https://github.com/ruuda/claxon/tree/cd82be3) (before) -> [8f28ec2](https://github.com/ruuda/claxon/tree/8f28ec2) (after).
+
+### Description
+
+When calculating the size of the buffer, the code does not consider the case when the input length is not a power of 2.
+
+### Code Snippet
+
+before:
+
+```rust
+let n_partitions = 1u32 << order;
+let n_samples = block_size >> order;
+let n_warm_up = block_size - buffer.len() as u16;
+
+// The partition size must be at least as big as the number of warm-up
+// samples, otherwise the size of the first partition is negative.
+if n_warm_up > n_samples {
+    return fmt_err("invalid residual");
+}
+
+// Finally decode the partitions themselves.
+match partition_type {
+    RicePartitionType::Rice => {
+        let mut start = 0;
+        let mut len = n_samples - n_warm_up;
+        for _ in 0..n_partitions {
+            let slice = &mut buffer[start..start + len as usize];
+            try!(decode_rice_partition(input, slice));
+            start = start + len as usize;
+            len = n_samples;
+        }
+    }
+    RicePartitionType::Rice2 => {
+        let mut start = 0;
+        let mut len = n_samples - n_warm_up;
+        for _ in 0..n_partitions {
+            let slice = &mut buffer[start..start + len as usize];
+            try!(decode_rice2_partition(input, slice));
+            start = start + len as usize;
+            len = n_samples;
+        }
+    }
+}
+```
