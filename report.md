@@ -259,6 +259,22 @@ after:
 Vec::from_raw_parts(ptr as *mut T, len, capacity)
 ```
 
+### Pattern
+
+```yaml
+rules:
+  - id: CVE-2018-21000
+    languages: [rust]
+    pattern: |
+      Vec::from_raw_parts($PTR, $LEN, $CAP);
+    message: |
+      The `Vec::from_raw_parts` method is used to create a new vector from a
+      given raw pointer, length, and capacity. Check the `$LEN` and `$CAP` to
+      ensure they are in the correct parameter positions. (The signature is
+      `Vec::from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Vec<T>`.)
+    severity: WARNING
+```
+
 ## CVE-2019-15548
 
 ### Information
