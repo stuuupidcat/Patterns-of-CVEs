@@ -155,3 +155,25 @@ match partition_type {
     }
 }
 ```
+
+## CVE-2018-20996
+
+### Information
+
+- MITRE: [CVE-2018-20996](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20996).
+- NVD: [CVE-2018-20996](https://nvd.nist.gov/vuln/detail/CVE-2018-20996).
+- Repository: [crossbeam](https://github.com/crossbeam-rs/crossbeam).
+- Issue: [Segfault](https://github.com/crossbeam-rs/crossbeam-epoch/issues/82).
+- Pull request: [Use ManuallyDrop in queues](https://github.com/crossbeam-rs/crossbeam/pull/184).
+- Commit SHA: [8f353c5](https://github.com/crossbeam-rs/crossbeam/tree/8f353c5) (before) -> [e6b3b98](https://github.com/crossbeam-rs/crossbeam/tree/e6b3b98) (after).
+
+### Description
+
+There is a double free because of destructor mishandling.
+
+### Code Snippet
+
+https://docs.rs/crossbeam/0.4.0/src/crossbeam/seg_queue.rs.html#24
+
+> Multiple threads, complex mechanism, can't understand.
+
