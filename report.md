@@ -418,3 +418,34 @@ rules:
       memory safety issues.
     severity: WARNING
 ```
+
+## CVE-2019-16139
+
+### Information
+
+- MITRE: [CVE-2019-16139](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-16139).
+- NVD: [CVE-2019-16139](https://nvd.nist.gov/vuln/detail/CVE-2019-16139).
+- Repository: [compact_arena](https://github.com/llogiq/compact_arena).
+- Issue: [Generativity mechanism is unsound](https://github.com/llogiq/compact_arena/issues/22).
+- Commit SHA: [947fa6e](https://github.com/llogiq/compact_arena/tree/947fa6e) (before) -> [eb413b3](https://github.com/llogiq/compact_arena/tree/eb413b3) (after).
+
+### Description
+
+Generativity is mishandled, leading to an out-of-bounds write or read.
+**Rejected by rustc after fixing the issue.**
+
+### Code Snippet
+
+```rust
+fn main() {
+    compact_arena::mk_arena!(a, 0);
+    compact_arena::mk_arena!(b, 0);
+    let mut a: compact_arena::SmallArena<'_, usize> = a;
+    let b: compact_arena::SmallArena<'_, usize> = b;
+
+    let ix = a.add(0);
+    dbg!(b[ix]);
+}
+// [dependencies]
+// compact_arena = { git = "https://github.com/llogiq/compact_arena/", rev = "eb413b3d47baea8e8a0b9ce2ccd8299b354d3b74" }
+```
