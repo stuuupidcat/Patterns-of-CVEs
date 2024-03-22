@@ -473,3 +473,60 @@ rust-vmm vm-memory before 0.1.1 and 0.2.x before 0.2.1 allows attackers to cause
 I don't know think this is a memory safety issue.
 
 The functions read_obj and write_obj are not doing **atomic accesses** for all combinations of platform and libc implementations. These reads and writes translate to memcpy, which may be performing byte-by-byte copies, resulting in DoS.
+
+## CVE-2020-25016
+
+### Information
+
+- MITRE: [CVE-2020-25016](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25016).
+- NVD: [CVE-2020-25016](https://nvd.nist.gov/vuln/detail/CVE-2020-25016).
+- Repository: [rust-rgb](https://github.com/kornelski/rust-rgb).
+- Issue: [ComponentBytes is unsound](https://github.com/kornelski/rust-rgb/issues/35).
+- Commit SHA: [8075972](https://github.com/kornelski/rust-rgb/tree/8075972) (before) -> [3c70362](https://github.com/kornelski/rust-rgb/tree/3c70362) (after).
+- Advisory: [File advisories for vulnerabilities with upcoming fixes](https://github.com/rustsec/advisory-db/pull/327).
+
+### commit sha?
+
+ffa7935 -> 2691083
+
+### Description
+
+A safety violation was discovered in the rgb crate before 0.8.20 for Rust, leading to (for example) dereferencing of arbitrary pointers or disclosure of uninitialized memory. This occurs because structs can be treated as bytes for read and write operations.
+
+### Code Snippet
+
+before
+
+```rust
+/// Casting a slice of `RGB/A` values to a slice of `u8`
+pub trait ComponentBytes<T: Copy + Send + Sync + 'static> where Self: ComponentSlice<T> {
+    /// The components interpreted as raw bytes, in machine's native endian. In `RGB` bytes of the red component are first.
+    #[inline]
+    fn as_bytes_mut(&mut self) -> &mut [u8] {
+        let slice = self.as_mut_slice();
+        unsafe {
+            core::slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut _, slice.len() * core::mem::size_of::<T>())
+        }
+    }
+}
+```
+
+attacked code
+
+```Rust
+use rgb::ComponentBytes;
+use rgb::FromSlice;
+
+fn main() {
+    let component: &'static str = "Hello, World!";
+    let mut not_rgb = [component; 3];
+    let bytes = FromSlice::as_rgb_mut(&mut not_rgb[..]).as_bytes_mut();
+    // Just write over this reference internals, lol.
+    bytes[0] += component.len() as u8;
+    // XXX: on most architectures this points after the original static now
+    // e.g. into some different static or executable memory
+    println!("{}", not_rgb[0]);
+}
+```
+
+
