@@ -580,4 +580,57 @@ rules:
     severity: WARNING
 ```
 
+## CVE-2020-26235
+
+### Information
+
+- MITRE: [CVE-2020-26235](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-26235).
+- NVD: [CVE-2020-26235](https://nvd.nist.gov/vuln/detail/CVE-2020-26235).
+- Repository: [time](https://github.com/time-rs/time).
+- Issue: [The call to `localtime_r` may be unsound](https://github.com/time-rs/time/issues/293).
+- Commit SHA: [ad4740f](https://github.com/time-rs/time/tree/ad4740f).
+
+### Description
+
+The call to `localtime_r` may be unsound.
+
+### Code Snippet
+
+```rust
+unsafe fn timestamp_to_tm(timestamp: i64) -> Option<libc::tm> {
+    extern "C" {
+        #[cfg_attr(target_os = "netbsd", link_name = "__tzset50")]
+        fn tzset();
+    }
+
+    // The exact type of `timestamp` beforehand can vary, so this conversion is necessary.
+    #[allow(clippy::useless_conversion)]
+    let timestamp = timestamp.try_into().ok()?;
+
+    let mut tm = MaybeUninit::uninit();
+
+    // Update timezone information from system. `localtime_r` does not do this for us.
+    //
+    // Safety: tzset is thread-safe.
+    unsafe { tzset() };
+
+    // Safety: We are calling a system API, which mutates the `tm` variable. If a null
+    // pointer is returned, an error occurred.
+    let tm_ptr = unsafe { libc::localtime_r(&timestamp, tm.as_mut_ptr()) };
+
+    if tm_ptr.is_null() {
+        None
+    } else {
+        // Safety: The value was initialized, as we no longer have a null pointer.
+        Some(unsafe { tm.assume_init() })
+    }
+}
+```
+
+### Pattern
+
+```yam
+
+
+
 
