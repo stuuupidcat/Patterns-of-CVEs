@@ -629,7 +629,24 @@ unsafe fn timestamp_to_tm(timestamp: i64) -> Option<libc::tm> {
 
 ### Pattern
 
-```yam
+```yaml
+rules:
+  - id: CVE-2020-26235
+    languages: [rust]
+    patterns:
+      - pattern-either:
+        - pattern: $MOD::localtime_r(...)
+        - pattern: localtime_r(...)
+      - pattern-inside:
+          pub fn $FUNC(...) {
+            ...
+          }
+    message: | 
+      Check the function `$FUNC` which calls the `localtime_r` method. 
+      The function is not thread-safe, may data race with `std::env::set_var` in libstd.
+      Ensure that the function is not used in a multi-threaded environment.
+    severity: WARNING
+```
 
 
 
