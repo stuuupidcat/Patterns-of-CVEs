@@ -470,9 +470,34 @@ rust-vmm vm-memory before 0.1.1 and 0.2.x before 0.2.1 allows attackers to cause
 
 ### Memory Safety Related
 
-I don't know think this is a memory safety issue.
-
 The functions read_obj and write_obj are not doing **atomic accesses** for all combinations of platform and libc implementations. These reads and writes translate to memcpy, which may be performing byte-by-byte copies, resulting in DoS.
+
+The function `slice::copy_from_slice` is not atomic:
+
+```rust
+pub fn copy_from_slice(&mut self, src: &[T])
+where
+    T: Copy,
+```
+
+Copies all elements from src into self, using a memcpy.
+The length of src must be the same as self.
+If T does not implement Copy, use clone_from_slice.
+
+### Pattern
+
+
+```yaml
+rules:
+  - id: CVE-2020-13759
+    languages: [rust]
+    pattern: |
+      slice::copy_from_slice($SRC, $DST);
+    message: |
+      The `slice::copy_from_slice` method is not atomic. (Use `memcpy` for copying elements.)
+      Ensure that it will not be used for scenarios where atomicity is required.
+    severity: WARNING
+```
 
 ## CVE-2020-25016
 
@@ -551,8 +576,78 @@ rules:
     message: |
       Check `$FUNC` which is defined inside the trait `$TRAIT` and returns a mutable slice.  
       Ensure that the `$GENERIC_PARA` is bounded by the `plain` trait(or something similar) 
-      to make sure strange things cannot be passed into `$TRAIT`.
+      to make sure certain types cannot be passed into `$TRAIT` as generic parameters.
     severity: WARNING
 ```
+
+## CVE-2020-26235
+
+### Information
+
+- MITRE: [CVE-2020-26235](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-26235).
+- NVD: [CVE-2020-26235](https://nvd.nist.gov/vuln/detail/CVE-2020-26235).
+- Repository: [time](https://github.com/time-rs/time).
+- Issue: [The call to `localtime_r` may be unsound](https://github.com/time-rs/time/issues/293).
+- Commit SHA: [ad4740f](https://github.com/time-rs/time/tree/ad4740f).
+
+### Description
+
+The call to `localtime_r` may be unsound.
+
+### Code Snippet
+
+```rust
+unsafe fn timestamp_to_tm(timestamp: i64) -> Option<libc::tm> {
+    extern "C" {
+        #[cfg_attr(target_os = "netbsd", link_name = "__tzset50")]
+        fn tzset();
+    }
+
+    // The exact type of `timestamp` beforehand can vary, so this conversion is necessary.
+    #[allow(clippy::useless_conversion)]
+    let timestamp = timestamp.try_into().ok()?;
+
+    let mut tm = MaybeUninit::uninit();
+
+    // Update timezone information from system. `localtime_r` does not do this for us.
+    //
+    // Safety: tzset is thread-safe.
+    unsafe { tzset() };
+
+    // Safety: We are calling a system API, which mutates the `tm` variable. If a null
+    // pointer is returned, an error occurred.
+    let tm_ptr = unsafe { libc::localtime_r(&timestamp, tm.as_mut_ptr()) };
+
+    if tm_ptr.is_null() {
+        None
+    } else {
+        // Safety: The value was initialized, as we no longer have a null pointer.
+        Some(unsafe { tm.assume_init() })
+    }
+}
+```
+
+### Pattern
+
+```yaml
+rules:
+  - id: CVE-2020-26235
+    languages: [rust]
+    patterns:
+      - pattern-either:
+        - pattern: $MOD::localtime_r(...)
+        - pattern: localtime_r(...)
+      - pattern-inside:
+          pub fn $FUNC(...) {
+            ...
+          }
+    message: | 
+      Check the function `$FUNC` which calls the `localtime_r` method. 
+      The function is not thread-safe, may data race with `std::env::set_var` in libstd.
+      Ensure that the function is not used in a multi-threaded environment.
+    severity: WARNING
+```
+
+
 
 
